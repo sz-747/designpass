@@ -1,0 +1,9 @@
+node_modules/
+.designpass/
+.env
+.env.*
+!.env.example
+*.local.json
+local/
+coverage/
+*.tgz

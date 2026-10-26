@@ -1,0 +1,33 @@
+{
+  "name": "designpass",
+  "version": "0.1.0",
+  "description": "Improve DESIGN.md with evidence from agent sessions and UI source drift, with reviewed edits under a token budget",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sz-747/designpass.git"
+  },
+  "homepage": "https://github.com/sz-747/designpass#readme",
+  "bugs": {
+    "url": "https://github.com/sz-747/designpass/issues"
+  },
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "designpass": "bin/designpass.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "prompts",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "dependencies": {
+    "backpass": "0.1.22"
+  }
+}
