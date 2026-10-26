@@ -1,8 +1,20 @@
 # Designpass
 
-Improve your `DESIGN.md` using evidence from real agent sessions and the UI source they produced.
+Designpass helps you improve the design instructions you give coding agents.
 
-A design file tells coding agents which colors, fonts, spacing, and rules to follow. Designpass checks what happened afterward: which rules helped, which were ignored, and where the code drifted from the design tokens. It proposes small edits for you to review before applying them.
+You keep your colors, fonts, spacing, and design rules in a file called `DESIGN.md`. After agents build UI, Designpass reads their session records and checks the code for differences from that file. It suggests small changes to the instructions, and you choose which ones to keep.
+
+## What you use it for
+
+Use Designpass when agents keep making the same design mistakes and you want future sessions to benefit from what you have already learned.
+
+- **Reduce repeated corrections.** If you keep asking agents to use the same spacing or button style, check whether the design instructions need to be clearer.
+- **Keep UI work consistent.** Find colors, text sizes, and other style values in the code that do not match the values in your design file.
+- **Improve a starting design file.** Begin with an empty file or a borrowed template, then review changes supported by your own sessions.
+
+For example, your design file says body text should be `16px`, but agents repeatedly write `15px`. Designpass shows where that happens and looks for session evidence that explains it. You can then review a proposal to clarify the rule or change the value. The mismatch alone does not tell it which choice is right.
+
+Designpass updates the instructions used for future UI work. Its source scan reports differences for you to inspect; it does not restyle your application.
 
 ## Install
 
@@ -93,7 +105,29 @@ designpass apply --scope user
 
 User scope targets `~/.agents/DESIGN.md`. It has no single repository to scan, so source drift is measured only in project scope.
 
-## How it works
+## How it is designed
+
+Designpass uses a **gradient-style feedback loop** over a text file:
+
+```text
+DESIGN.md -> agent builds UI -> session records + source code
+    ^                                      |
+    |                                      v
+accepted edits <- human review <- evidence-backed proposal
+```
+
+The analogy comes from optimization: observe the result of a forward pass, use its errors to choose a direction, and take a small update step. Here, the parameters are design tokens and written rules. An LLM proposes text edits from evidence. Designpass does not compute mathematical derivatives, backpropagate through the model, or train model weights.
+
+| Optimization concept | Designpass equivalent |
+| --- | --- |
+| Parameters or weights | Token values and prose rules in `DESIGN.md`, plus skill descriptions. |
+| Forward pass | An agent uses those instructions while building UI. |
+| Loss signal | Session mistakes, human corrections, and measured source drift. These are observations rather than one differentiable loss function. |
+| Update direction | Evidence combined across sessions suggests which entries to strengthen, rewrite, add, or remove. |
+| Step size and constraints | An edit cap limits each proposal, evidence gates require support, and a token budget bounds the instruction surface. |
+| Parameter update | Accepted edits are checked and written after human review. |
+
+### Processing pipeline
 
 1. **Index the design file.** Each value in the YAML front matter becomes a named token unit, such as `TK-colors.link`. Prose rules become `DS-001`, `DS-002`, and so on. Units retain their line numbers so proposals can target specific text.
 2. **Find relevant sessions.** Discovery reads local stores for Claude Code, Codex, Pi, OpenCode, Grok, Cursor CLI, and Hermes. It associates sessions using working directories and Git remotes. Missing stores are skipped.
@@ -104,7 +138,14 @@ User scope targets `~/.agents/DESIGN.md`. It has no single repository to scan, s
 
 Discovery and drift measurement run locally. Model stages send distilled session content and design context through your configured agent. Obvious secrets are redacted during distillation, but review which sessions and files you make available to that agent.
 
-For example, if `DESIGN.md` specifies a `16px` body size while the source repeatedly uses `15px`, the drift report names the mismatched value and its locations. Session evidence helps determine whether to clarify the rule, change the token, or leave it alone. A mismatch by itself does not establish which value is correct.
+### Implementation boundaries
+
+- **Parsing and measurement are deterministic.** The parser assigns token and rule IDs with source line numbers. The drift scanner compares normalized literals with the token table without asking a model to judge them.
+- **Models interpret evidence and draft changes.** A per-session analysis pass produces structured observations with trace quotes. Synthesis receives the combined evidence and edits a staging copy, from which concrete changes are measured.
+- **Validation runs in code.** Evidence requirements, edit limits, token budgets, reference checks, and contrast checks constrain the model's proposal. The writer checks the accepted subset again before applying it.
+- **Runtime integration uses module hooks.** Five modules supply design-specific parsing, prompts, bootstrapping, proposal checks, and write checks. Small load-time patches change configuration defaults and platform handling. Unchanged discovery, evidence aggregation, and review behavior comes from a pinned runtime dependency.
+
+Each run produces a proposal for review. Repeating the loop lets later UI sessions use the revised instructions, but every change still needs evidence and acceptance.
 
 ### Design file format
 
